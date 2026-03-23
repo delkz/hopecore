@@ -109,30 +109,56 @@ const Preview = ({ image, text }: PreviewProps) => {
   }, [currentImage, textValue, textOptions]);
 
   // 💾 export da imagem
-  const handleDownloadImage = async () => {
-    if (!currentImage?.src?.original) return;
+const handleShareImage = async () => {
+  if (!currentImage?.src?.original) return;
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-    canvas.width = 1080;
-    canvas.height = 1920;
+  canvas.width = 1080;
+  canvas.height = 1920;
 
-    await renderCanvas(
-      ctx,
-      canvas.width,
-      canvas.height,
-      currentImage.src.original,
-      textValue,
-      textOptions
-    );
+  await renderCanvas(
+    ctx,
+    canvas.width,
+    canvas.height,
+    currentImage.src.original,
+    textValue,
+    textOptions
+  );
 
-    const link = document.createElement("a");
-    link.download = "hopecore.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
+  return new Promise<void>((resolve) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+
+      const file = new File([blob], "hopecore.png", {
+        type: "image/png",
+      });
+
+      // 🔥 verifica suporte
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Check this out",
+            text: "Generated with my app ✨",
+          });
+        } catch (err) {
+          console.log("Share cancelled");
+        }
+      } else {
+        // fallback (desktop ou sem suporte)
+        const link = document.createElement("a");
+        link.download = "hopecore.png";
+        link.href = URL.createObjectURL(blob);
+        link.click();
+      }
+
+      resolve();
+    }, "image/png");
+  });
+};
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -201,8 +227,8 @@ const Preview = ({ image, text }: PreviewProps) => {
                     <option value="right">Right</option>
                 </select>
             </form>
-            <button onClick={handleDownloadImage} className="btn btn-neutral">
-                Download as Image
+            <button onClick={handleShareImage} className="btn btn-neutral">
+                Share Image
             </button>
             <button onClick={() => fetchImage(true)} className="btn btn-neutral" >
                 New Image
