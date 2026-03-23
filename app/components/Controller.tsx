@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Image } from "../backend/core/types";
+import { ImageType } from "../backend/core/types";
 import Preview from "./Preview";
 
 export default function Controller() {
-    const [image, setImage] = useState<Image | null>(null);
+    const [image, setImage] = useState<ImageType | null>(null);
 
 
     useEffect(() => {

@@ -1,10 +1,10 @@
-import { Image, SearchResult } from "./types";
+import { ImageType } from "./types";
 
 export interface ImageServie {
-    getRandom(): Promise<Image[]>,
+    getRandom(): Promise<ImageType[]>,
 }
 
-export async function getNatureImage(service: ImageServie): Promise<Image>{
+export async function getNatureImage(service: ImageServie): Promise<ImageType>{
     const data = await service.getRandom();
 
     if (data.length === 0) {

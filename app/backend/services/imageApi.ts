@@ -1,8 +1,8 @@
 import { createClient } from "pexels";
-import { Image } from "../core/types";
+import { ImageType } from "../core/types";
 
 export class ImageApiService {
-  async getRandom(): Promise<Image[]> {
+  async getRandom(): Promise<ImageType[]> {
     const key = process.env.pexels_api_key;
 
     if (!key) {

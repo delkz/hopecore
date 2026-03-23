@@ -1,6 +1,6 @@
 import { PhotosWithTotalResults } from "pexels"
 
-export type Image = {
+export type ImageType = {
     id: number,
     width: number,
     height: number,
