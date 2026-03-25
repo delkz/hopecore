@@ -1,15 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ImageType, TextOptions } from "../backend/core/types";
-
-interface PreviewProps {
-  image: ImageType;
-  text: {
-    value: string;
-    options: TextOptions;
-  };
-}
+import { TextOptions } from "../backend/core/types";
+import { canvasDimensions, useEditorStore } from "../store/useEditorStore";
 
 // 🔥 render único (imagem + efeitos + overlay + texto)
 function renderCanvas(
@@ -17,6 +10,10 @@ function renderCanvas(
   width: number,
   height: number,
   img: HTMLImageElement,
+  objectFit: "cover" | "contain" | "fill" | "none",
+  objectZoom: number,
+  objectPositionX: number,
+  objectPositionY: number,
   overlayEffect: "none" | "blur" | "grainy",
   grainIntensity: "low" | "medium" | "high",
   text: string,
@@ -26,12 +23,38 @@ function renderCanvas(
   overlayMixMode: GlobalCompositeOperation,
   grainCanvas?: HTMLCanvasElement | null
 ) {
+  const drawImageWithObjectSettings = () => {
+    const zoomFactor = objectZoom / 100;
+    let baseWidth = width;
+    let baseHeight = height;
+
+    if (objectFit !== "fill") {
+      const ratioX = width / img.width;
+      const ratioY = height / img.height;
+      const scale =
+        objectFit === "contain"
+          ? Math.min(ratioX, ratioY)
+          : objectFit === "none"
+            ? 1
+            : Math.max(ratioX, ratioY);
+      baseWidth = img.width * scale;
+      baseHeight = img.height * scale;
+    }
+
+    const drawWidth = baseWidth * zoomFactor;
+    const drawHeight = baseHeight * zoomFactor;
+    const offsetX = (width - drawWidth) * (objectPositionX / 100);
+    const offsetY = (height - drawHeight) * (objectPositionY / 100);
+
+    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+  };
+
   ctx.clearRect(0, 0, width, height);
-  ctx.drawImage(img, 0, 0, width, height);
+  drawImageWithObjectSettings();
 
   if (overlayEffect === "blur") {
     ctx.filter = "blur(8px)";
-    ctx.drawImage(img, 0, 0, width, height);
+    drawImageWithObjectSettings();
     ctx.filter = "none";
   } else if (overlayEffect === "grainy" && grainCanvas) {
     const grainAlphaByIntensity = {
@@ -100,20 +123,34 @@ function renderCanvas(
   });
 }
 
-const Preview = ({ image, text }: PreviewProps) => {
+const Preview = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const loadedImageRef = useRef<HTMLImageElement | null>(null);
   const grainCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [currentImage, setCurrentImage] = useState(image);
-  const [textValue, setTextValue] = useState(text.value);
-  const [textOptions, setTextOptions] = useState(text.options);
-  const [overlayColor, setOverlayColor] = useState("#000000");
-  const [overlayOpacity, setOverlayOpacity] = useState(10);
-  const [overlayEffect, setOverlayEffect] = useState<"none" | "blur" | "grainy">("none");
-  const [grainIntensity, setGrainIntensity] = useState<"low" | "medium" | "high">("medium");
-  const [overlayMixMode, setOverlayMixMode] = useState<GlobalCompositeOperation>("multiply");
+  const {
+    image,
+    customImageUrl,
+    textValue,
+    textOptions,
+    overlayColor,
+    overlayOpacity,
+    overlayEffect,
+    grainIntensity,
+    overlayMixMode,
+    objectFit,
+    objectZoom,
+    objectPositionX,
+    objectPositionY,
+    canvasFormat,
+    setImage,
+    setCustomImageUrl,
+  } = useEditorStore();
+
   const [imageReadyTick, setImageReadyTick] = useState(0);
+
+  const dimensions = canvasDimensions[canvasFormat];
+  const currentImageUrl = customImageUrl || image?.src?.original || "";
 
   function ensureGrainCanvas(width: number, height: number) {
     const existing = grainCanvasRef.current;
@@ -145,22 +182,26 @@ const Preview = ({ image, text }: PreviewProps) => {
   async function fetchImage(refresh = false) {
     const res = await fetch(`/api/image${refresh ? "?refresh=true" : ""}`);
     const data = await res.json();
-    setCurrentImage(data);
+    setImage(data);
+    if (customImageUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(customImageUrl);
+    }
+    setCustomImageUrl(null);
   }
 
   // carrega imagem quando muda a fonte
   useEffect(() => {
-    if (!currentImage?.src?.original) return;
+    if (!currentImageUrl) return;
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = currentImage.src.original;
+    img.src = currentImageUrl;
 
     img.onload = () => {
       loadedImageRef.current = img;
       setImageReadyTick((prev) => prev + 1);
     };
-  }, [currentImage]);
+  }, [currentImageUrl]);
 
   // render em tempo real para todas as opções
   useEffect(() => {
@@ -178,6 +219,10 @@ const Preview = ({ image, text }: PreviewProps) => {
       canvas.width,
       canvas.height,
       img,
+      objectFit,
+      objectZoom,
+      objectPositionX,
+      objectPositionY,
       overlayEffect,
       grainIntensity,
       textValue,
@@ -187,22 +232,22 @@ const Preview = ({ image, text }: PreviewProps) => {
       overlayMixMode,
       grainCanvas
     );
-  }, [currentImage, imageReadyTick, textValue, textOptions, overlayColor, overlayOpacity, overlayEffect, grainIntensity, overlayMixMode]);
+  }, [imageReadyTick, textValue, textOptions, overlayColor, overlayOpacity, overlayEffect, grainIntensity, overlayMixMode, objectFit, objectZoom, objectPositionX, objectPositionY, canvasFormat]);
 
   // 💾 export da imagem
   const handleShareImage = async () => {
-    if (!currentImage?.src?.original) return;
+    if (!currentImageUrl) return;
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width = 1080;
-    canvas.height = 1920;
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
 
     const exportImage = new Image();
     exportImage.crossOrigin = "anonymous";
-    exportImage.src = currentImage.src.original;
+    exportImage.src = currentImageUrl;
 
     await new Promise<void>((resolve) => {
       exportImage.onload = () => resolve();
@@ -215,6 +260,10 @@ const Preview = ({ image, text }: PreviewProps) => {
       canvas.width,
       canvas.height,
       exportImage,
+      objectFit,
+      objectZoom,
+      objectPositionX,
+      objectPositionY,
       overlayEffect,
       grainIntensity,
       textValue,
@@ -263,170 +312,32 @@ const Preview = ({ image, text }: PreviewProps) => {
       {/* 🎥 PREVIEW */}
       <canvas
         ref={canvasRef}
-        width={1080}
-        height={1920}
+        width={dimensions.width}
+        height={dimensions.height}
         style={{
           width: "100%",
           maxWidth: 400,
-          aspectRatio: "9 / 16",
+          aspectRatio: dimensions.aspectRatio,
           borderRadius: 12,
           background: "#000",
         }}
       />
-        {currentImage && <div className='flex flex-row gap-2'>
-          <a href={currentImage.photographer_url} target="_blank" className='underline' rel="noopener noreferrer">
-            📸 {currentImage.photographer}
+        {image && !customImageUrl && <div className='flex flex-row gap-2'>
+          <a href={image.photographer_url} target="_blank" className='underline' rel="noopener noreferrer">
+            📸 {image.photographer}
           </a>
           | Image offered by <a href="https://www.pexels.com" className='underline' target="_blank" rel="noopener noreferrer">Pexels</a>
         </div>}
       </div>
       <div>
-        <form className="flex flex-col gap-2">
-          <input
-            type="text"
-            placeholder='Your Text Here'
-            maxLength={128}
-            onChange={(e) => setTextValue(e.target.value)}
-            value={textValue}
-            className="input w-full"
-          />
-          <label htmlFor="fontSize">Font Size:</label>
-          <select
-            name="fontSize"
-            id="fontSize"
-            value={textOptions.fontSize}
-            className="select w-full"
-            onChange={(e) => setTextOptions({ ...textOptions, fontSize: Number(e.target.value) })}
-          >
-            <option value="12">12</option>
-            <option value="16">16</option>
-            <option value="28">28</option>
-            <option value="32">32</option>
-            <option value="64">64</option>
-            <option value="98">98</option>
-            <option value="128">128</option>
-          </select>
-          <label htmlFor="htmlColor">Text Color:</label>
-          <input
-            type="color"
-            id="htmlColor"
-            className='input w-full'
-            value={textOptions.color}
-            onChange={(e) => setTextOptions({ ...textOptions, color: e.target.value })}
-          />
-          <label htmlFor="fontFamily">Font Family:</label>
-          <select
-            name="fontFamily"
-            id="fontFamily"
-            value={textOptions.fontfamily}
-            className="select w-full"
-            onChange={(e) => setTextOptions({ ...textOptions, fontfamily: e.target.value })}
-          >
-            <option value="Arial">Arial</option>
-            <option value="Roboto">Roboto</option>
-            <option value="Crimson Text">Crimson Text</option>
-            <option value="Arvo">Arvo</option>
-          </select>
-          <label htmlFor="textAlign">Text Align:</label>
-          <select
-            name="textAlign"
-            id="textAlign"
-            value={textOptions.textAlign}
-            onChange={(e) => setTextOptions({ ...textOptions, textAlign: e.target.value })}
-            className="select w-full"
-          >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
-          </select>
-          
-          {/* Overlay Controls */}
-          <div className="divider my-2"></div>
-          <h3 className="text-sm font-bold">Overlay</h3>
-          
-          <label htmlFor="overlayColor">Overlay Color:</label>
-          <input
-            type="color"
-            id="overlayColor"
-            className="input w-full"
-            value={overlayColor}
-            onChange={(e) => setOverlayColor(e.target.value)}
-          />
-          
-          <label htmlFor="overlayOpacity">Opacity: {overlayOpacity}%</label>
-          <input
-            type="range"
-            id="overlayOpacity"
-            min="0"
-            max="100"
-            value={overlayOpacity}
-            onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-            className="range range-xs"
-          />
-          
-          <label htmlFor="overlayEffect">Effect:</label>
-          <select
-            name="overlayEffect"
-            id="overlayEffect"
-            value={overlayEffect}
-            onChange={(e) => setOverlayEffect(e.target.value as "none" | "blur" | "grainy")}
-            className="select w-full"
-          >
-            <option value="none">None</option>
-            <option value="blur">Blur</option>
-            <option value="grainy">Grainy</option>
-          </select>
-
-          {overlayEffect === "grainy" && (
-            <>
-              <label htmlFor="grainIntensity">Grain Intensity:</label>
-              <select
-                name="grainIntensity"
-                id="grainIntensity"
-                value={grainIntensity}
-                onChange={(e) => setGrainIntensity(e.target.value as "low" | "medium" | "high")}
-                className="select w-full"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </>
-          )}
-
-          <label htmlFor="overlayMixMode">Mix Mode:</label>
-          <select
-            name="overlayMixMode"
-            id="overlayMixMode"
-            value={overlayMixMode}
-            onChange={(e) => setOverlayMixMode(e.target.value as GlobalCompositeOperation)}
-            className="select w-full"
-          >
-            <option value="multiply">Multiply</option>
-            <option value="screen">Screen</option>
-            <option value="overlay">Overlay</option>
-            <option value="darken">Darken</option>
-            <option value="lighten">Lighten</option>
-            <option value="color-dodge">Color Dodge</option>
-            <option value="color-burn">Color Burn</option>
-            <option value="hard-light">Hard Light</option>
-            <option value="soft-light">Soft Light</option>
-            <option value="difference">Difference</option>
-            <option value="exclusion">Exclusion</option>
-            <option value="hue">Hue</option>
-            <option value="saturation">Saturation</option>
-            <option value="color">Color</option>
-            <option value="luminosity">Luminosity</option>
-          </select>
-        </form>
-        <div className="flex flex-col lg:flex-row gap-2 mt-3 sticky bottom-2 right-2 bg-white">
+      <div className="flex flex-col lg:flex-row gap-2 mt-3 sticky bottom-2 right-2 bg-white">
         <button onClick={handleShareImage} className="btn btn-primary rounded-full">
           Share Image
         </button>
         <button onClick={() => fetchImage(true)} className="btn btn-secondary rounded-full" >
           New Image
         </button>
-        </div>
+      </div>
 
       </div>
 

@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { ImageType } from "../backend/core/types";
+import EditorForm from "./EditorForm";
 import Preview from "./Preview";
+import { useEditorStore } from "../store/useEditorStore";
 
 export default function Controller() {
     const [image, setImage] = useState<ImageType | null>(null);
+    const setStoreImage = useEditorStore((state) => state.setImage);
 
 
     useEffect(() => {
@@ -23,6 +26,7 @@ export default function Controller() {
 
             if (isMounted) {
                 setImage(data);
+                setStoreImage(data);
             }
         }
 
@@ -31,7 +35,7 @@ export default function Controller() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [setStoreImage]);
 
     if (!image) {
         return <div>Loading...</div>;
@@ -40,23 +44,9 @@ export default function Controller() {
     return (
         <div className="container mx-auto">
 
-            <div className="flex flex-col items-center gap-4">
-                <Preview
-                    image={
-                        image
-                    }
-                    text={
-                        {
-                            value: "Motivate yourself today!",
-                            options: {
-                                fontSize: 64,
-                                color: "yellow",
-                                textAlign: "left",
-                                fontfamily: "Arial"
-                            }
-                        }
-                    }
-                />
+            <div className="flex flex-col lg:flex-row items-start gap-6">
+                <Preview />
+                <EditorForm />
             </div>
             <div className="mt-4">
              
