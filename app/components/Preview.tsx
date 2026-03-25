@@ -83,7 +83,7 @@ function renderCanvas(
 
   // configura texto
   ctx.fillStyle = options.color || "#ffffff";
-  ctx.font = `${options.fontSize}px ${options.fontfamily || "sans-serif"}`;
+  ctx.font = `${options.textWeight || "normal"} ${options.fontSize}px ${options.fontfamily || "sans-serif"}`;
   ctx.textAlign = options.textAlign as CanvasTextAlign;
 
   const maxWidth = width - 100;

@@ -29,5 +29,6 @@ export type TextOptions = {
     fontSize: number;
     color: string;
     textAlign: "left" | "center" | "right" | string;
+    textWeight: "normal" | "bold" | "bolder" | "lighter" | number | string;
     fontfamily: "Arial" | "Helvetica" | "Times New Roman" | "Courier New" | "Verdana" | string;
 }

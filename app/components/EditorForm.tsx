@@ -181,6 +181,21 @@ const EditorForm = () => {
                     <option value="right">Right</option>
                 </select>
 
+                <label htmlFor="textWeight">Text Weight:</label>
+                <select
+                    name="textWeight"
+                    id="textWeight"
+                    value={textOptions.textWeight}
+                    onChange={(e) => setTextOptions({ ...textOptions, textWeight: e.target.value })}
+
+                    className="select w-full"
+                >
+                    <option value="lighter">Light</option>
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                </select>
+
+
                 <div className="divider my-2"></div>
                 <b>Overlay</b>
 
