@@ -307,7 +307,7 @@ const Preview = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
       {/* 🎥 PREVIEW */}
       <canvas
@@ -330,7 +330,7 @@ const Preview = () => {
         </div>}
       </div>
       <div>
-      <div className="flex flex-col lg:flex-row gap-2 mt-3 sticky bottom-2 right-2 bg-white">
+      <div className="flex flex-col lg:flex-row gap-2 mt-3 sticky bottom-2 right-2 p-4">
         <button onClick={handleShareImage} className="btn btn-primary rounded-full">
           Share Image
         </button>
