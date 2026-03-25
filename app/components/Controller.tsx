@@ -40,7 +40,7 @@ export default function Controller() {
     return (
         <div className="container mx-auto">
 
-            <div>
+            <div className="flex flex-col items-center gap-4">
                 <Preview
                     image={
                         image
